@@ -92,7 +92,7 @@
 ## Шаг 4: Исправление бага №4 (scheduler)
 
 - **Описание проблемы:** Фоновый парсинг запускается каждые 5 секунд вместо 5 минут
-- **Файл и строка:** `app/services/scheduler.py` ?
+- **Файл и строка:** `app/services/scheduler.py`
 - **Код до исправления:**
     ```python
     seconds=settings.parse_schedule_minutes,
@@ -106,33 +106,141 @@
 
 ---
 
-## Шаг 5: Исправление бага №5 ()
+## Шаг 5: Исправление бага №5 (Schema Partial Update Validation/ Unique Constraint)
 - **Описание проблемы:**
-- **Файл и строка:**
+    1. При попытке обновить вакансию через PUT-запрос сервер выкидывал `500 Internal Server Error`.
+    2. При попытке обновить только одно поле API возвращало `422 Unprocessable Entity`.
+- **Файл и строка:** `app/schemas/vacancy.py`
 - **Код до исправления:**
     ```python
+    class VacancyBase(BaseModel):
+        title: str
+        timetable_mode_name: str
+        tag_name: str
+        city_name: Optional[str] = None
+        published_at: datetime
+        is_remote_available: bool
+        is_hot: bool
+        external_id: Optional[int] = None
 
+
+    class VacancyCreate(VacancyBase):
+        pass
+
+
+    class VacancyUpdate(VacancyBase):
+        pass
+
+
+    class VacancyRead(VacancyBase):
+        model_config = ConfigDict(from_attributes=True)
     ```
 - **Код после исправления:**
     ```python
+    class VacancyBase(BaseModel):
+        title: str
+        timetable_mode_name: str
+        tag_name: str
+        city_name: Optional[str] = None
+        published_at: datetime
+        is_remote_available: bool
+        is_hot: bool
+        # FIX: Убрал external_id из базы, чтобы он не наследовался в Update
 
+
+    class VacancyCreate(VacancyBase):
+        external_id: int # FIX: Добавил external_id, так как при создании он нужен
+
+
+    class VacancyUpdate(BaseModel):
+        # FIX: Переопределил класс вместо наследования, чтобы сделать поля Optional. 
+        # Это исправляет ошибку 422 при частичном обновлении и защищает external_id.
+        title: Optional[str] = None
+        timetable_mode_name: Optional[str] = None
+        tag_name: Optional[str] = None
+        city_name: Optional[str] = None
+        published_at: Optional[datetime] = None
+        is_remote_available: Optional[bool] = None
+        is_hot: Optional[bool] = None
+
+
+    class VacancyRead(VacancyBase):
+        model_config = ConfigDict(from_attributes=True)
+        id: int
+        external_id: Optional[int] = None # Показываем в ответах API
+        created_at: datetime
     ```
-- **Причина ошибки:** 
-- **Итог:** 
+- **Причина ошибки:** Схема VacancyUpdate наследовалась от VacancyBase, что вызывало две проблемы:
+    1. Наследование `external_id` (конфликт уникальности в БД при попытке "обновить" ID на тот же самый).
+    2. Наследование обязательности полей, что противоречит логике частичного обновления.
+- **Итог:** Устранены ошибки, реализована поддержка частичного обновления.
+- **Дополнение:** При ручном тестировании PUT-запроса было выявлено, что отсутствие поля `external_id` в запросе приводило к затиранию данных в БД (установке значения NULL). Это происходило из-за того, что схема обновления наследовала необязательное поле со значением по умолчанию None. Разделение схем полностью исключает такую возможность в будущем.
+
+---
+
+## Шаг 6: Исправление бага №6 (Partial Update Logic)
+
+- **Описание проблемы:** Функция перезаписывала все поля значениями из схемы, например затирание, если пусто.
+- **Что сделал:**
+    1. Модернизировал логику обновления данных в функции update_vacancy (частичное обновление).
+    2. Добавил блокировку обновления технических полей (`id`, `external_id`) на уровне бизнес-логики.
+- **Файл и строка:** `app/crud/vacancy.py` - `update_vacancy`
+- **Код до исправления:**
+    ```python
+    for field, value in data.model_dump().items():
+    ```
+- **Код после исправления:**
+    ```python
+    # Обновление только оправленных полей
+    # Блок на технические поля
+    update_data = data.model_dump(exclude_unset=True, exclude={'id', 'external_id'})
+    for field, value in update_data.items():
+    ```
+- **Итог:** Защита от затирания, изоляция ID
+
+---
+
+## Шаг 7: Исправление бага №7 (DELETE 404)
+
+- **Что сделал:** Проверил работоспособность эндпоинта удаления после исправления в схемах и бл.
+- **Описание проблемы:** DELETE возвращал 404 для существующих вакансий.
+- **Итог:** После рефакторинга схем и очистки логики CRUD, операции удаления проходят успешно.
+
+---
+
+## Шаг 8: Исправление бага №8 (Positional Argument Fragility)
+
+- **Описание проблемы:** Хрупкая связь между слоями. При позиционной передаче Python сопоставляет данные по порядку. Любое изменение сигнатуры функции `list_vacancies` привело бы к логической ошибке без падения приложения.
+- **Файл и строка:** `app/api/v1/vacancies.py:30`
+- **Код до исправления:**
+    ```python
+    return await list_vacancies(session, timetable_mode_name, city)
+    ```
+- **Код после исправления:**
+    ```python
+    # Явно передаём именованные аргументы
+    return await list_vacancies(session=session, timetable_mode_name=timetable_mode_name, city_name=city)
+    ```
+- **Причина ошибки:** Параметр функции называется `city_name`, но в API используется `city`.
+- **Итог:** Внедрено явное именование аргументов (Keyword Arguments), что гарантирует корректную передачу данных между API и БД-слоем.
+
+---
+
+
+#### Планируемые шаги
+- [x] Исправить интервал планировщика (сейчас срабатывает каждые 5 секунд вместо 5 минут).
+- [x] Протестировать CRUD эндпоинты через Swagger UI - есть два бага
+- [ ] `app/api/v1/vacancies.py` - дублирование функции `get_session()` (в `vacancies.py` и `parse.py`).
+- [ ] `app/crud/vacancy.py` — `upsert_external_vacancies` - функция считает только newly created, но не обновлённые
+- [x] `app/schemas/vacancy.py` — `VacancyUpdate` требует все поля (Обычно для update - Optional, обновлять частично.)
 
 #### Итог на текущий момент
 * Контейнеры успешно запускаются и связываются друг с другом.
 * База данных инициализируется, миграции Alembic проходят успешно.
-* Фоновый парсер начал отправлять запросы к API Selectel (получен статус 200 OK).
-* Перезапуск контейнера `docker compose down && docker compose up --build`
+* Фоновый парсер отправляет запросы к API Selectel (получен статус 200 OK).
+* Все эндпоинты работают корректно.
+* Приложение возвращает корректные HTTP-статусы и данные.
 
-#### Планируемые шаги
-- [x] Исправить интервал планировщика (сейчас срабатывает каждые 5 секунд вместо 5 минут).
-- [ ] Протестировать CRUD эндпоинты через Swagger UI.
-- [ ] `app/db/base.py` — пустой файл (только базовый класс)
-- [ ] `app/api/v1/vacancies.py` - дублирование функции `get_session()` (в `vacancies.py` и `parse.py`).
-- [ ] `app/crud/vacancy.py` — `upsert_external_vacancies` - функция считает только newly created, но не обновлённые
-- [ ] `app/api/v1/vacancies.py` — POST возвращает 200 для дубликата (Обычно 409 Conflict или 400 Bad Request)
-- [ ] `app/schemas/vacancy.py` — `VacancyUpdate` требует все поля (Обычно для update - Optional, обновлять частично.)
-- [ ] `app/crud/vacancy.py` — фильтр по городу использует `city_name`. Параметр `city` из запроса не будет передан в `list_vacancies`, потому что имена не совпадают.
-- [ ] Выявить и исправить остальные баги (3/8)
+* Приложен скриншот Swagger UI с выполненными успешными запросами. 
+
+* Перезапуск контейнера `docker compose down && docker compose up --build`
