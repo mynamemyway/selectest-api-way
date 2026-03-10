@@ -226,6 +226,32 @@
 
 ---
 
+## Шаг 9: Архитектурный рефакторинг (DRY / Dependency Injection)
+
+- **Описание проблемы:** Дублирование логики создания сессии базы данных в `vacancies.py` и `parse.py`. Нарушение принципа DRY.
+- **Файлы:** `app/api/dependencies.py` (создан), `app/api/v1/vacancies.py`, `app/api/v1/parse.py`.
+- **Код до исправления:**
+    ```python
+    # В каждом файле роутера дублировался один и тот же код:
+    async def get_session() -> AsyncSession:
+        async with async_session_maker() as session:
+            yield session
+    ```
+- **Код после исправления:**
+    ```python
+    # 1. Создан единый провайдер в app/api/dependencies.py
+    async def get_session() -> AsyncGenerator[AsyncSession, None]:
+        async with async_session_maker() as session:
+            yield session
+
+    # 2. В роутерах удалён лишний код и обновлены импорты:
+    from app.api.dependencies import get_session
+    ```
+- **Причина необходимости:** Дублирование инфраструктурного кода затрудняет внесение глобальных изменений, поддержку и тестирование.
+- **Итог:** Устранено дублирование. Логика управления жизненным циклом сессии БД вынесена в единую точку входа, что соответствует Best Practices разработки на FastAPI.
+
+---
+
 #### Планируемые шаги
 - [ ] `app/crud/vacancy.py` — `upsert_external_vacancies` - функция считает только newly created, но не обновлённые
 
