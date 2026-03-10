@@ -7,11 +7,12 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # FIX: Игнорируем системные переменные
     )
 
     database_url: str = Field(
-        "postgresql+asyncpg://postgres:postgres@db:5432/postgres_typo",
-        validation_alias="DATABSE_URL",
+        "postgresql+asyncpg://postgres:postgres@db:5432/postgres", # FIX: Исправлено имя БД по умолчанию
+        validation_alias="DATABASE_URL", # FIX: Исправлена опечатка в алиасе
     )
     log_level: str = "INFO"
     parse_schedule_minutes: int = 5
