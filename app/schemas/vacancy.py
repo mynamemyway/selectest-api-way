@@ -12,19 +12,20 @@ class VacancyBase(BaseModel):
     published_at: datetime
     is_remote_available: bool
     is_hot: bool
-    external_id: Optional[int] = None
+    # FIX: Убрал external_id из базы, чтобы он не наследовался в Update
 
 
 class VacancyCreate(VacancyBase):
-    pass
+    external_id: int # FIX: Добавил external_id, так как при создании он нужен
 
 
 class VacancyUpdate(VacancyBase):
+    # FIX: Убрал external_id, поле защищено от изменений
     pass
 
 
 class VacancyRead(VacancyBase):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
+    external_id: Optional[int] = None # Показываем в ответах API
     created_at: datetime
