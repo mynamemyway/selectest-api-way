@@ -29,7 +29,8 @@ async def list_vacancies_endpoint(
     city: Optional[str] = None,
     session: AsyncSession = Depends(get_session),
 ) -> List[VacancyRead]:
-    return await list_vacancies(session, timetable_mode_name, city)
+    # Явно передаём именованные аргументы
+    return await list_vacancies(session=session, timetable_mode_name=timetable_mode_name, city_name=city)
 
 
 @router.get("/{vacancy_id}", response_model=VacancyRead)
