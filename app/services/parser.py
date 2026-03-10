@@ -38,8 +38,8 @@ async def parse_and_store(session: AsyncSession) -> int:
                     {
                         "external_id": item.id,
                         "title": item.title,
-                        "timetable_mode_name": item.timetable_mode.name,
-                        "tag_name": item.tag.name,
+                        "timetable_mode_name": item.timetable_mode.name if item.timetable_mode else None,
+                        "tag_name": item.tag.name if item.tag else None,
                         "city_name": item.city.name.strip() if item.city else None,
                         "published_at": item.published_at,
                         "is_remote_available": item.is_remote_available,
