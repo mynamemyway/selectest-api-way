@@ -10,11 +10,11 @@
 - **Что сделал:** Изучил структуру проекта, `README.md`, `app/core/config.py` для определения переменных окружения.
 - **Проблема:** Отсутствует `.env.example`. Переменные окружения описаны в README.md, но их значения нужно найти в коде.
 - **Решение:** 
-  1. Создал файл `.env` с переменными:
-     - `DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres`
-     - `LOG_LEVEL=DEBUG`
-     - `PARSE_SCHEDULE_MINUTES=5`
-  2. Почистил `.gitignore` от избыточных строк (шаблон GitHub), оставил минимальный набор для Python-приложения.
+    1. Создал файл `.env` с переменными:
+        - `DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres`
+        - `LOG_LEVEL=DEBUG`
+        - `PARSE_SCHEDULE_MINUTES=5`
+    2. Почистил `.gitignore` от избыточных строк (шаблон GitHub), оставил минимальный набор для Python-приложения.
 
 ---
 
@@ -26,8 +26,8 @@
 - **Решение:** Удалил строку `fastapi==999.0.0; python_version < "3.8"`
 - **Причина ошибки:** Вероятно, добавленная несуществующая версия пакета (999.0.0) для старой версии python.
 - **Итог:**
-  1. Создал и активировал `venv`
-  2. Установил зависимости из `requirements.txt`
+    1. Создал и активировал `venv`
+    2. Установил зависимости из `requirements.txt`
 
 ---
 
@@ -37,7 +37,7 @@
 - **Проблема:** Контейнер падает с ошибкой `pydantic_core._pydantic_core.ValidationError: Extra inputs are not permitted`.
 - **Файл и строка:** `app/core/config.py:10-18`
 - **Код до исправления:**
-  ```python
+    ```python
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -48,9 +48,9 @@
         "postgresql+asyncpg://postgres:postgres@db:5432/postgres_typo",
         validation_alias="DATABSE_URL",
     )
-  ```
+    ```
 - **Код после исправления:**
-  ```python
+    ```python
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -62,7 +62,7 @@
         "postgresql+asyncpg://postgres:postgres@db:5432/postgres", # FIX: Исправлено имя БД по умолчанию
         validation_alias="DATABASE_URL", # FIX: Исправлена опечатка в алиасе
     )
-  ```
+    ```
 - **Причина ошибки:** 
     1. Опечатка `validation_alias="DATABSE_URL"`.
     2. Значение строки подключения по умолчанию содержало некорректное имя БД (postgres_typo).
@@ -75,32 +75,32 @@
 - **Описание проблемы:** Фоновый парсинг падает с ошибкой `AttributeError: 'NoneType' object has no attribute 'name'`.
 - **Файл и строка:** `app/services/parser.py:43`
 - **Код до исправления:**
-  ```python
-  "city_name": item.city.name.strip(),
-  ```
+    ```python
+    "city_name": item.city.name.strip(),
+    ```
 - **Код после исправления:**
-  ```python
-  "city_name": item.city.name.strip() if item.city else None,
-  ```
+    ```python
+    "city_name": item.city.name.strip() if item.city else None,
+    ```
 - **Причина ошибки:** Попытка обращения к атрибуту `.name` у объекта типа `None`. Поле `city` является опциональным.
 - **Итог:** Парсинг работает корректно, вакансии без города сохраняются с `city_name=None`.
 
 ---
 
-## Шаг 4: Исправление бага №4 (scheduler?)
+## Шаг 4: Исправление бага №4 (scheduler)
 
 - **Описание проблемы:** Фоновый парсинг запускается каждые 5 секунд вместо 5 минут
 - **Файл и строка:** `app/services/scheduler.py` ?
 - **Код до исправления:**
-  ```python
-
-  ```
+    ```python
+    seconds=settings.parse_schedule_minutes,
+    ```
 - **Код после исправления:**
-  ```python
-
-  ```
-- **Причина ошибки:** 
-- **Итог:** 
+    ```python
+    minutes=settings.parse_schedule_minutes,
+    ```
+- **Причина ошибки:** Использование именованного аргумента `seconds` вместо `minutes` в методе `add_job`.
+- **Итог:** Интервал парсинга теперь соответствует настройкам (5 минут).
 
 ---
 
@@ -110,7 +110,6 @@
 * Фоновый парсер начал отправлять запросы к API Selectel (получен статус 200 OK).
 
 #### Планируемые шаги
-- [ ] Исправить интервал планировщика (сейчас срабатывает каждые 5 секунд вместо 5 минут).
-- [ ] Проверить логику сохранения вакансий (лог показывает 0 новых вакансий, что подозрительно).
+- [x] Исправить интервал планировщика (сейчас срабатывает каждые 5 секунд вместо 5 минут).
 - [ ] Протестировать CRUD эндпоинты через Swagger UI.
 - [ ] Выявить и исправить остальные баги (3/8)
