@@ -47,7 +47,11 @@ async def create_vacancy(session: AsyncSession, data: VacancyCreate) -> Vacancy:
 async def update_vacancy(
     session: AsyncSession, vacancy: Vacancy, data: VacancyUpdate
 ) -> Vacancy:
-    for field, value in data.model_dump().items():
+    # Обновление только оправленных полей
+    # Блок на технические поля
+    update_data = data.model_dump(exclude_unset=True, exclude={'id', 'external_id'})
+    
+    for field, value in update_data.items():
         setattr(vacancy, field, value)
     await session.commit()
     await session.refresh(vacancy)
