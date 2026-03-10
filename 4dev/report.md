@@ -252,6 +252,27 @@
 
 ---
 
+## Шаг 10: Архитектурный рефакторинг (Parser None Check)
+
+- **Описание проблемы:** Парсер может упасть с `AttributeError`, если API вернёт вакансию без `tag` или `timetable_mode`.
+- **Файл и строка:** `app/services/parser.py:41-42`
+- **Код до исправления:**
+    ```python
+    "timetable_mode_name": item.timetable_mode.name,
+    "tag_name": item.tag.name,
+    ```
+
+- **Код после исправления:**
+    ```python
+    "timetable_mode_name": item.timetable_mode.name if item.timetable_mode else None,
+    "tag_name": item.tag.name if item.tag else None,
+    ```
+
+- **Причина ошибки:** Отсутствие проверки на `None` перед обращением к атрибуту `.name`.
+- **Итог:** Парсер устойчив к вакансиям без тега или режима работы. Все три потенциально опасных поля (city, tag, timetable_mode) защищены от NoneType ошибок
+
+---
+
 #### Планируемые шаги
 - [ ] `app/crud/vacancy.py` — `upsert_external_vacancies` - функция считает только newly created, но не обновлённые
 
