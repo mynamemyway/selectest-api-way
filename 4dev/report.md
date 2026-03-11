@@ -83,7 +83,7 @@
     ```
 - **Код после исправления:**
     ```python
-    "city_name": item.city.name.strip() if item.city else None,
+    "city_name": item.city.name.strip() if item.city else None, # FIX: добавил проверку на `None`
     ```
 - **Причина ошибки:** Попытка обращения к атрибуту `.name` у объекта типа `None`. Поле `city` является опциональным.
 - **Итог:** Парсинг работает корректно, вакансии без города сохраняются с `city_name=None`.
@@ -100,7 +100,7 @@
     ```
 - **Код после исправления:**
     ```python
-    minutes=settings.parse_schedule_minutes,
+    minutes=settings.parse_schedule_minutes, # FIX: Установил минуты вместо секунд для интервала запуска 
     ```
 - **Причина ошибки:** Использование именованного аргумента `seconds` вместо `minutes` в методе `add_job`.
 - **Итог:** Интервал парсинга теперь соответствует настройкам (5 минут).
@@ -192,10 +192,8 @@
     ```
 - **Код после исправления:**
     ```python
-    # Обновление только оправленных полей
-    # Блок на технические поля
-    update_data = data.model_dump(exclude_unset=True, exclude={'id', 'external_id'})
-    for field, value in update_data.items():
+    update_data = data.model_dump(exclude_unset=True, exclude={'id', 'external_id'})  # Блок на технические поля
+    for field, value in update_data.items():  # Обновление только оправленных полей
     ```
 - **Итог:** Защита от затирания, изоляция ID
 
@@ -265,8 +263,8 @@
 
 - **Код после исправления:**
     ```python
-    "timetable_mode_name": item.timetable_mode.name if item.timetable_mode else None,
-    "tag_name": item.tag.name if item.tag else None,
+    "timetable_mode_name": item.timetable_mode.name if item.timetable_mode else None,  # Проверка на None для режима
+    "tag_name": item.tag.name if item.tag else None,  # Проверка на None для тега
     ```
 
 - **Причина ошибки:** Отсутствие проверки на `None` перед обращением к атрибуту `.name`.
