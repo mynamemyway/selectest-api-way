@@ -1,7 +1,7 @@
 # Отчёт по отладке приложения Selectel Vacancies API
 
-![alt text](image.png)
 ![alt text](image-1.png)
+![alt text](image-2.png)
 
 **ФИО:** Самохвалов А.С.  
 **Дата:** 10 марта 2026
